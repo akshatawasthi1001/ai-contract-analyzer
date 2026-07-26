@@ -5,6 +5,11 @@ from sqlalchemy import engine_from_config, pool
 
 from app.core.config import settings
 from app.db.base import Base
+from app.models.contract import Contract
+from app.models.document import Document
+from app.models.contract_analysis import ContractAnalysis
+from app.models.contract import Contract
+from app.models.document import Document
 
 
 config = context.config

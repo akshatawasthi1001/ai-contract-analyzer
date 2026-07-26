@@ -59,3 +59,10 @@ class Contract(Base):
         back_populates="contract",
         cascade="all, delete-orphan",
     )
+
+    analysis = relationship(
+    "ContractAnalysis",
+    back_populates="contract",
+    uselist=False,
+    cascade="all, delete-orphan",
+)

@@ -14,6 +14,7 @@ from app.schemas.contract import (
 )
 from app.services.ai_analysis import analyze_contract
 from app.services.contract import ContractService
+from app.services.contract_analysis import ContractAnalysisService
 
 
 router = APIRouter(
@@ -154,6 +155,7 @@ async def upload_contract_file(
         "text": extracted_text,
     }
 
+
 @router.post(
     "/{contract_id}/analyze",
     status_code=status.HTTP_200_OK,
@@ -200,12 +202,87 @@ def analyze_contract_document(
             "error": "Unsupported file format."
         }
 
-    # Send extracted text to OpenAI
+    # Send extracted text to Ollama
     ai_analysis = analyze_contract(extracted_text)
 
+    # Parse AI response into sections
+    summary = ""
+    key_clauses = []
+    obligations = []
+    risks = []
+    observations = []
+
+    current_section = None
+
+    for line in ai_analysis.splitlines():
+        line = line.strip()
+
+        if not line:
+            continue
+
+        lower_line = line.lower()
+
+        # Detect Summary section
+        if "summary" in lower_line and lower_line.startswith("**"):
+            current_section = "summary"
+            continue
+
+        # Detect Key Clauses section
+        elif "key clauses" in lower_line and lower_line.startswith("**"):
+            current_section = "key_clauses"
+            continue
+
+        # Detect Obligations section
+        elif "obligations" in lower_line and lower_line.startswith("**"):
+            current_section = "obligations"
+            continue
+
+        # Detect Potential Risks section
+        elif "potential risks" in lower_line and lower_line.startswith("**"):
+            current_section = "risks"
+            continue
+
+        # Detect Important Observations section
+        elif (
+            "important observations" in lower_line
+            and lower_line.startswith("**")
+        ):
+            current_section = "observations"
+            continue
+
+        # Add content to the correct section
+        if current_section == "summary":
+            summary += line + "\n"
+
+        elif current_section == "key_clauses":
+            key_clauses.append(line)
+
+        elif current_section == "obligations":
+            obligations.append(line)
+
+        elif current_section == "risks":
+            risks.append(line)
+
+        elif current_section == "observations":
+            observations.append(line)
+
+    # Save AI analysis to PostgreSQL
+    analysis_record = ContractAnalysisService.create_analysis(
+        db=db,
+        contract_id=contract_id,
+        summary=summary.strip(),
+        key_clauses=key_clauses,
+        obligations=obligations,
+        risks=risks,
+        observations=observations,
+        model_name="llama3.2",
+    )
+
+    # Return response
     return {
         "contract_id": str(contract_id),
         "filename": file_path.name,
-        "message": "Contract analyzed successfully",
+        "message": "Contract analyzed and analysis saved successfully",
+        "analysis_id": str(analysis_record.id),
         "analysis": ai_analysis,
     }
