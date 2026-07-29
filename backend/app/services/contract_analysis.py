@@ -32,3 +32,20 @@ class ContractAnalysisService:
         db.refresh(analysis)
 
         return analysis
+
+    @staticmethod
+    def get_analysis(
+        db: Session,
+        contract_id,
+    ) -> ContractAnalysis | None:
+
+        return (
+            db.query(ContractAnalysis)
+            .filter(
+                ContractAnalysis.contract_id == contract_id
+            )
+            .order_by(
+                ContractAnalysis.created_at.desc()
+            )
+            .first()
+        )
